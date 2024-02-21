@@ -1,0 +1,44 @@
+[package]
+name = "llm-runner"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+name = "llm-test"
+path = "src/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+command-utils = { path = "../modules/command-utils" }
+candle-wrapper = { path = "../candle-wrapper" }
+
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+base64 = { workspace = true }
+candle-core = { workspace = true }
+candle-nn = { workspace = true }
+candle-transformers = { workspace = true }
+clap = { workspace = true }
+dotenvy = { workspace = true }
+envy = { workspace = true }
+hf-hub = { workspace = true }
+log = { workspace = true }
+once_cell = { workspace = true }
+prost = { workspace = true }
+rand = { workspace = true }
+safetensors = { workspace = true }
+scopeguard = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokenizers = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+url = { workspace = true }
+[build-dependencies]
+prost-build = { workspace = true }
