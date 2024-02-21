@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package whisper;
+
+enum Language {
+    AUTO = 0; // auto detect
+    EN = 1;
+    ZH = 2;
+    DE = 3;
+    ES = 4;
+    RU = 5;
+    KO = 6;
+    FR = 7;
+    JA = 8;
+    PT = 9;
+    TR = 10;
+    PL = 11;
+    CA = 12;
+    NL = 13;
+    AR = 14;
+    SV = 15;
+    IT = 16;
+    ID = 17;
+    HI = 18;
+    FI = 19;
+    VI = 20;
+    HE = 21;
+    UK = 22;
+    EL = 23;
+    MS = 24;
+    CS = 25;
+    RO = 26;
+    DA = 27;
+    HU = 28;
+    TA = 29;
+    NO = 30;
+    TH = 31;
+    UR = 32;
+    HR = 33;
+    BG = 34;
+    LT = 35;
+    LA = 36;
+    MI = 37;
+    ML = 38;
+    CY = 39;
+    SK = 40;
+    TE = 41;
+    FA = 42;
+    LV = 43;
+    BN = 44;
+    SR = 45;
+    AZ = 46;
+    SL = 47;
+    KN = 48;
+    ET = 49;
+    MK = 50;
+    BR = 51;
+    EU = 52;
+    IS = 53;
+    HY = 54;
+    NE = 55;
+    MN = 56;
+    BS = 57;
+    KK = 58;
+    SQ = 59;
+    SW = 60;
+    GL = 61;
+    MR = 62;
+    PA = 63;
+    SI = 64;
+    KM = 65;
+    SN = 66;
+    YO = 67;
+    SO = 68;
+    AF = 69;
+    OC = 70;
+    KA = 71;
+    BE = 72;
+    TG = 73;
+    SD = 74;
+    GU = 75;
+    AM = 76;
+    YI = 77;
+    LO = 78;
+    UZ = 79;
+    FO = 80;
+    HT = 81;
+    PS = 82;
+    TK = 83;
+    NN = 84;
+    MT = 85;
+    SA = 86;
+    LB = 87;
+    MY = 88;
+    BO = 89;
+    TL = 90;
+    MG = 91;
+    AS = 92;
+    TT = 93;
+    LN = 94;
+    HA = 95;
+    BA = 96;
+    JW = 97;
+    SU = 98;
+    HAw = 99;
+}
+
+enum Task {
+    Transcribe = 0;
+    Translate = 1;
+}
+
+
+message WhisperRequest {
+    // The url of the voice file to summarize. (file path or http(s) url)
+    string url= 1;
+
+    // language of the voice file.(Default: auto detect)
+    Language lang = 2;
+
+    // The seed to use when generating random samples.
+    optional uint64 seed = 3;
+
+    /// Task, when no task is specified, the input tokens contain only the sot token which can
+    /// improve things when in no-timestamp mode.
+    Task task = 4;
+
+    // Timestamps mode.
+    bool timestamps = 5;
+
+}
+
+message WhisperSegment {
+    double start = 1;
+    double duration = 2;
+    string text = 3;
+}
+
+message WhisperResponse {
+    // The embedded sentence vectors of the article.
+    repeated WhisperSegment segments = 1;
+}
