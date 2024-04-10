@@ -135,27 +135,6 @@ impl WhisperLoaderImpl {
             .from_env::<WhisperLoaderImpl>()
             .context("cannot read whisper model config from env:")
     }
-
-    // (config, tokenizer, model)
-    pub fn filenames(&self, which: &WhichModel) -> (String, String, String) {
-        if self.quantized {
-            let ext = match which {
-                WhichModel::TinyEn => "tiny-en",
-                WhichModel::Tiny => "tiny",
-                _ => unimplemented!("no quantized support for {:?}", which),
-            };
-            (
-                format!("config-{ext}.json"),
-                format!("tokenizer-{ext}.json"),
-                format!("model-{ext}-q80.gguf"),
-            )
-        } else {
-            let config = "config.json".to_string();
-            let tokenizer = "tokenizer.json".to_string();
-            let model = "model.safetensors".to_string();
-            (config, tokenizer, model)
-        }
-    }
 }
 
 impl HFModelLoader for WhisperLoaderImpl {

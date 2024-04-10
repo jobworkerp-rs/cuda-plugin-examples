@@ -5,6 +5,10 @@ pub mod model;
 use anyhow::{anyhow, Result};
 use embedding::SentenceEmbedder;
 use itertools::Itertools;
+use jobworkerp_client::jobworkerp::data::{
+    worker_operation::Operation, PluginOperation, WorkerOperation,
+};
+use once_cell::sync::Lazy;
 use prost::Message;
 use std::io::Cursor;
 
@@ -41,6 +45,11 @@ pub struct SentenceBertRunnerPlugin {
 
 impl SentenceBertRunnerPlugin {
     const RUNNER_NAME: &'static str = "SentenceBertRunner";
+    const OPERATION: Lazy<WorkerOperation> = Lazy::new(|| WorkerOperation {
+        operation: Some(Operation::Plugin(PluginOperation {
+            name: Self::RUNNER_NAME.to_string(),
+        })),
+    });
     pub fn new() -> Result<Self> {
         let embedder = SentenceEmbedder::new()?;
         Ok(Self { embedder })
