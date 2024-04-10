@@ -3,8 +3,8 @@ use jobworkerp_client::{
     client::JobworkerpClientImpl,
     jobworkerp::{
         data::{
-            JobResultData, QueueType, ResponseType, RetryPolicy, RetryType, RunnerType, Worker,
-            WorkerData,
+            runner_arg::Data, JobResultData, PluginArg, QueueType, ResponseType, RetryPolicy,
+            RetryType, RunnerArg, RunnerType, Worker, WorkerData,
         },
         service::{CreateWorkerRequest, JobRequest, WorkerNameRequest},
     },
@@ -43,7 +43,7 @@ impl JobworkerpEmbeddingClient {
         let worker_data = WorkerData {
             name: "SentenceBertWorker".to_string(),
             r#type: RunnerType::Plugin as i32,
-            operation: SentenceBertRunnerPlugin::RUNNER_NAME.to_string(),
+            operation: Some(SentenceBertRunnerPlugin::OPERATION.clone()),
             retry_policy: Some(policy.clone()),
             periodic_interval: 0,
             channel: Some(self.channel_name.clone()),
@@ -71,8 +71,7 @@ impl JobworkerpEmbeddingClient {
             let wid = worker_cli
                 .create(CreateWorkerRequest {
                     name: "SentenceBertWorker".to_string(),
-                    r#type: RunnerType::Plugin as i32,
-                    operation: SentenceBertRunnerPlugin::RUNNER_NAME.to_string(),
+                    operation: Some(SentenceBertRunnerPlugin::OPERATION.clone()),
                     retry_policy: Some(policy),
                     channel: Some(self.channel_name.clone()),
                     // queue_type: QueueType::Redis as i32, // default
@@ -100,7 +99,11 @@ impl JobworkerpEmbeddingClient {
         let mut job_cli = self.jobworkerp_client.job_client().await;
         job_cli
             .enqueue(JobRequest {
-                arg: sentence.into_bytes(),
+                arg: Some(RunnerArg {
+                    data: Some(Data::Plugin(PluginArg {
+                        arg: sentence.into_bytes(),
+                    })),
+                }),
                 timeout: Some((timeout_sec * 1000).into()),
                 worker: Some(
                     jobworkerp_client::jobworkerp::service::job_request::Worker::WorkerId(
