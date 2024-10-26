@@ -34,7 +34,7 @@ pub struct LLMModelLoaderConfig {
     pub model_config_file: Option<String>, // default: config.json
     pub quantized: Option<bool>,           // TODO not implemented
     pub use_flash_attn: bool,              // available for llama or mistral
-    pub eos_token: String,             // predefined (TODO load from tokenizer.json)
+    pub eos_token: String,                 // predefined (TODO load from tokenizer.json)
     pub use_cpu: bool,                     // if quantized, cpu only (limited by candle)
 }
 

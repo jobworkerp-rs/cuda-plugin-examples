@@ -73,6 +73,12 @@ impl LlmRunnerPlugin {
     }
 }
 
+impl Default for LlmRunnerPlugin {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PluginRunner for LlmRunnerPlugin {
     fn name(&self) -> String {
         // specify as same string as worker.operation

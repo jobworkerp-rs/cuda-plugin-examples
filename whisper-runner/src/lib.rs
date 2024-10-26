@@ -82,6 +82,12 @@ impl WhisperRunnerPlugin {
     }
 }
 
+impl Default for WhisperRunnerPlugin {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PluginRunner for WhisperRunnerPlugin {
     fn name(&self) -> String {
         // specify as same string as worker.operation

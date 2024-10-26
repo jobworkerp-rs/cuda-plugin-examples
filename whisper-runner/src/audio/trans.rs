@@ -175,7 +175,7 @@ impl MyResampler {
 
     // ref. https://github.com/HEnquist/rubato/blob/master/examples/process_f64.rs#L188
     pub fn resample(&mut self, samples: &[f32]) -> Result<Vec<f32>> {
-        let waves_in = vec![samples.to_vec()];
+        let waves_in = [samples.to_vec()];
         let outbuffer = self.output_buffer.as_mut();
         let mut indata_slices: Vec<&[f32]> = waves_in.iter().map(|v| &v[..]).collect();
         let mut input_frames_next = self.resampler.input_frames_next();

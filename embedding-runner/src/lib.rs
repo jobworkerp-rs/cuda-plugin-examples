@@ -6,11 +6,7 @@ use anyhow::{anyhow, Result};
 use candle_wrapper::PluginRunner;
 use embedding::SentenceEmbedder;
 use itertools::Itertools;
-use jobworkerp_client::jobworkerp::data::{
-    worker_operation::Operation, PluginOperation, WorkerOperation,
-};
 use model::BertLoaderImpl;
-use once_cell::sync::Lazy;
 use prost::Message;
 use protobuf::embedding::{EmbeddingArg, EmbeddingOperation, EmbeddingResult};
 use std::io::Cursor;
@@ -39,15 +35,19 @@ pub extern "C" fn free_plugin(ptr: Box<dyn PluginRunner + Send + Sync>) {
 pub struct SentenceBertRunnerPlugin {
     embedder: Option<SentenceEmbedder>,
 }
-// static DATA: OnceCell<Bytes> = OnceCell::new();
 
 impl SentenceBertRunnerPlugin {
     const RUNNER_NAME: &'static str = "embedding.Embedding";
-    const OPERATION: Lazy<WorkerOperation> = Lazy::new(|| WorkerOperation {
-        operation: Some(Operation::Plugin(PluginOperation {
-            name: Self::RUNNER_NAME.to_string(),
-        })),
-    });
+    // worker operation data (need serializing to bytes)
+    // const OPERATION: Lazy<WorkerOperation> = Lazy::new(|| WorkerOperation {
+    //     operation: Some(Operation::Plugin(EmbeddingOperation {
+    //         model_id: "intfloat/multilingual-e5-small".to_string(),
+    //         use_cpu: false,
+    //         normalize_embeddings: false,
+    //         approximate_gelu: true,
+    //         prefix: Some("query: ".to_string()),
+    //     })),
+    // });
     pub fn new() -> Result<Self> {
         Ok(Self { embedder: None })
     }

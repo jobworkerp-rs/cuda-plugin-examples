@@ -1,5 +1,3 @@
-use std::io::Cursor;
-
 use candle_wrapper::PluginRunner;
 use clap::Parser;
 use llm_runner::{protobuf::llm::CandleLlmArg, LlmRunnerPlugin};
