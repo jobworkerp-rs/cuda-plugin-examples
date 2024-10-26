@@ -1,3 +1,4 @@
+use candle_nn::Activation;
 use candle_transformers::models::falcon;
 use candle_transformers::models::llama;
 use candle_transformers::models::mistral;
@@ -126,38 +127,44 @@ impl From<LLMConfig> for llama::Config {
             rms_norm_eps: config.rms_norm_eps.unwrap_or(default.rms_norm_eps),
             rope_theta: config.rope_theta,
             use_flash_attn: config.use_flash_attn.unwrap_or(true),
+            bos_token_id: Some(config.bos_token_id),
+            eos_token_id: Some(llama::LlamaEosToks::Single(config.eos_token_id)), // TODO multi
+            rope_scaling: None,                                                   // TODO
+            max_position_embeddings: config
+                .max_position_embeddings
+                .unwrap_or(llama::DEFAULT_MAX_SEQ_LEN),
+            tie_word_embeddings: false, // TODO
         }
     }
 }
 
 // TODO
 impl From<LLMConfig> for mistral::Config {
-    fn from(_value: LLMConfig) -> Self {
+    fn from(value: LLMConfig) -> Self {
         let default = mistral::Config::config_7b_v0_1(true);
         // XXX cannot init mistral::Config (field scope "crate")
-        // mistral::Config {
-        //     vocab_size: value.vocab_size,
-        //     hidden_size: value.hidden_size,
-        //     intermediate_size: value.intermediate_size.unwrap_or(default.intermediate_size),
-        //     num_hidden_layers: value.num_hidden_layers,
-        //     num_attention_heads: value.num_attention_heads,
-        //     num_key_value_heads: value
-        //         .num_key_value_heads
-        //         .unwrap_or(default.num_key_value_heads),
-        //     hidden_act: value.hidden_act,
-        //     max_position_embeddings: value.max_position_embeddings.unwrap_or(default.max_position_embeddings),
-        //     rms_norm_eps: value.rms_norm_eps.unwrap_or(default.rms_norm_eps),
-        //     rope_theta: value.rope_theta,
-        //     sliding_window: value.sliding_window.unwrap_or(default.sliding_window),
-        //     use_flash_attn: default.use_flash_attn,
-        // };
-        // XXX cannot init mistral::Config (field scope "crate")
-        tracing::warn!(
-            "cannot load mistral config (library constraint): fallback to default: {:?}",
-            default
-        );
-        tracing::debug!("load mistral model params: {:?}", default);
-        default
+        mistral::Config {
+            vocab_size: value.vocab_size,
+            hidden_size: value.hidden_size,
+            intermediate_size: value.intermediate_size.unwrap_or(default.intermediate_size),
+            num_hidden_layers: value.num_hidden_layers,
+            num_attention_heads: value.num_attention_heads,
+            num_key_value_heads: value
+                .num_key_value_heads
+                .unwrap_or(default.num_key_value_heads),
+            hidden_act: value
+                .hidden_act
+                .map(|v| serde_json::from_str::<Activation>(&v).unwrap_or(default.hidden_act))
+                .unwrap_or(default.hidden_act),
+            max_position_embeddings: value
+                .max_position_embeddings
+                .unwrap_or(default.max_position_embeddings),
+            rms_norm_eps: value.rms_norm_eps.unwrap_or(default.rms_norm_eps),
+            rope_theta: value.rope_theta as f64,
+            sliding_window: value.sliding_window.or(default.sliding_window),
+            use_flash_attn: default.use_flash_attn,
+            head_dim: default.head_dim,
+        }
     }
 }
 impl From<LLMConfig> for stable_lm::Config {

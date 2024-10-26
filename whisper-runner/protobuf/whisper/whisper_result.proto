@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package whisper;
+
+message WhisperSegment {
+    double start = 1;
+    double duration = 2;
+    string text = 3;
+}
+message WhisperResult {
+    // The embedded sentence vectors of the article.
+    repeated WhisperSegment segments = 1;
+}

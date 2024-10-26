@@ -1,5 +1,3 @@
-use std::{fs::File, path::Path};
-
 use crate::audio::input::AudioNormalizedDecoder;
 use crate::runner::whisper::audio::{self, Float};
 use anyhow::{anyhow, Context, Result};
@@ -44,13 +42,19 @@ impl AudioTensorProcessor {
         ext: Option<&String>,
         buf_sec: u64,
         n_mels: usize,
+        n_tracks: usize,
     ) -> Result<Self> {
-        let audio = AudioNormalizedDecoder::new_by_data(data, ext, buf_sec)?;
+        let audio = AudioNormalizedDecoder::new_by_data(data, ext, buf_sec, n_tracks)?;
         Self::new(audio, buf_sec as usize, n_mels)
     }
 
-    pub fn new_by_input(input: String, buf_sec: u64, n_mels: usize) -> Result<Self> {
-        let audio = AudioNormalizedDecoder::new(input, buf_sec)?;
+    pub fn new_by_input(
+        input: String,
+        buf_sec: u64,
+        n_mels: usize,
+        n_tracks: usize,
+    ) -> Result<Self> {
+        let audio = AudioNormalizedDecoder::new(input, buf_sec, n_tracks)?;
         Self::new(audio, buf_sec as usize, n_mels)
     }
     pub fn new(audio: AudioNormalizedDecoder, chunk_length: usize, n_mels: usize) -> Result<Self> {
@@ -131,24 +135,6 @@ impl AudioTensorProcessor {
             chunk_length,
         );
         Ok(mel)
-    }
-    // for test
-    #[allow(dead_code)]
-    fn write_wav(&self, out_filename: &String, outbuf: &[f32]) -> Result<()> {
-        let header = wav::Header::new(
-            wav::header::WAV_FORMAT_IEEE_FLOAT,
-            1,
-            Self::SAMPLE_RATE as u32,
-            32,
-        );
-        let buf = outbuf;
-        let mut out_file = File::create(Path::new(out_filename))?;
-        wav::write(
-            header,
-            &wav::BitDepth::ThirtyTwoFloat(buf.to_owned()),
-            &mut out_file,
-        )?;
-        Ok(())
     }
 }
 

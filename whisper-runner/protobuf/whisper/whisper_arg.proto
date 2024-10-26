@@ -111,7 +111,7 @@ enum Task {
 }
 
 
-message WhisperRequest {
+message WhisperArg {
     // The url of the voice file to summarize. (file path or http(s) url)
     string url= 1;
 
@@ -128,15 +128,6 @@ message WhisperRequest {
     // Timestamps mode.
     bool timestamps = 5;
 
-}
-
-message WhisperSegment {
-    double start = 1;
-    double duration = 2;
-    string text = 3;
-}
-
-message WhisperResponse {
-    // The embedded sentence vectors of the article.
-    repeated WhisperSegment segments = 1;
+    // track index of decoding target  (default: 0)
+    optional uint64 n_tracks = 6;
 }
