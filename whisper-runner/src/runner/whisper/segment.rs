@@ -304,7 +304,7 @@ mod test {
                 compression_ratio: 0.0,
             },
         };
-        let expected = vec![Segment {
+        let expected = [Segment {
             start: 150.0,
             duration: 12.34,
             dr: DecodingResult {
@@ -361,7 +361,7 @@ mod test {
             },
         };
 
-        let expected = vec![Segment {
+        let expected = [Segment {
             start: 140.0,
             duration: 9.80 + 12.34,
             dr: DecodingResult {

@@ -10,6 +10,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
+use crate::protobuf::embedding::EmbeddingOperation;
+
 #[derive(PartialEq, Debug, Deserialize, Serialize, Clone)]
 pub struct BertLoaderImpl {
     /// if quantized, cpu only (limited by candle)
@@ -25,6 +27,17 @@ pub struct BertLoaderImpl {
 
     /// use prefix for embedding key (e.g. "query: , passage: for multilingual-e5 model")
     pub prefix: Option<String>,
+}
+impl From<EmbeddingOperation> for BertLoaderImpl {
+    fn from(op: EmbeddingOperation) -> Self {
+        Self {
+            use_cpu: op.use_cpu,
+            model_id: op.model_id,
+            normalize_embeddings: op.normalize_embeddings,
+            approximate_gelu: op.approximate_gelu,
+            prefix: op.prefix,
+        }
+    }
 }
 
 impl BertLoaderImpl {

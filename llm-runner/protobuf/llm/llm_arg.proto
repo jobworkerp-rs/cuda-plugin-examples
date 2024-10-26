@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package llm;
 
-message InferenceRequest {
+message CandleLlmArg {
     // The initial prompt.
     string prompt = 1;
 
@@ -26,9 +26,4 @@ message InferenceRequest {
 
     // print iteratively (false for plugin runner, true for cli)
     bool need_print= 8;
-}
-
-message InferenceResponse {
-    // The generated text.
-    string text = 1;
 }

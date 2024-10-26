@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package llm;
+
+message CandleLlmOperation {
+    // pre-setting profile: llama-7b-v2, elyza-7b-fast, stable-lm-ja-vocab-beta-7b, stable-lm-ja-gamma-7b, stable-lm-ja-3b-4e1t
+    optional string loader_profile = 1;
+
+    // model name (huggingface model hub)
+    // if not defined, load local files
+    optional string model_id = 2;
+    // model revision (huggingface model hub) (option: default=main)
+    optional string revision = 3;
+    // tokenizer filename (local file path or hugging face filename. default: tokenizer.json)
+    optional string tokenizer_file = 4;
+    // weight filename (local file path or hugging face filename. default: model.safetensors)
+    repeated string weight_files = 5;
+    // model config filename (local file path or hugging face filename. default: config.json)
+    optional string model_config_file = 6;
+    // eos token (depends on the tokenizer and the model)
+    optional string eos_token = 7;
+
+    // available for llama and mistral, stable_lm
+    bool use_flash_attn = 8;
+    // Run on CPU rather than on GPU.
+    bool use_cpu = 9;
+    // quantized model is now not supported
+    bool quantized = 10;
+
+}

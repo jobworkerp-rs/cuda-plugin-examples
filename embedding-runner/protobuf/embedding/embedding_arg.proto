@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package embedding;
+
+message EmbeddingArg {
+    // The article to be embedded as vector.
+    string article = 1;
+    optional string prefix = 2;
+}
+

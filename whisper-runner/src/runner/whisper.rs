@@ -11,11 +11,11 @@ pub mod segment;
 // - Batch size greater than 1.
 // - More token filters (SuppressBlanks, ApplyTimestampRules).
 
-#[cfg(feature = "accelerate")]
-extern crate accelerate_src;
+// #[cfg(feature = "accelerate")]
+// extern crate accelerate_src;
 
-#[cfg(feature = "mkl")]
-extern crate intel_mkl_src;
+// #[cfg(feature = "mkl")]
+// extern crate intel_mkl_src;
 
 use self::segment::{DecodingResult, Segment};
 use crate::audio::trans::AudioTensorProcessor;

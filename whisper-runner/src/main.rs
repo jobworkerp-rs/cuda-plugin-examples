@@ -1,14 +1,16 @@
 use std::{io::Cursor, path::PathBuf};
 
 use anyhow::{anyhow, Context, Result};
+use candle_wrapper::PluginRunner;
 use clap::Parser;
 use command_utils::util::{option::FlatMap as OptionFlatMap, result::FlatMap};
 use prost::Message;
 use serde::Deserialize;
 use url::Url;
 use whisper_runner::{
-    protobuf::whisper::WhisperSegment, runner::whisper::Task, PluginRunner, WhisperRunnerPlugin,
-    WhisperSegmentWriter,
+    protobuf::whisper::{WhisperArg, WhisperResult, WhisperSegment},
+    runner::whisper::Task,
+    WhisperRunnerPlugin, WhisperSegmentWriter,
 };
 
 #[derive(Parser, Debug, Deserialize, Clone)]
@@ -38,6 +40,10 @@ pub struct Args {
     /// Only print request payload as base64 encodings (for jobworkerp request)
     #[arg(long, default_value = "false")]
     request_output_only: bool,
+
+    /// track index of decoding target  (default: 0)
+    #[arg(long, default_value_t = 0)]
+    pub n_tracks: u64,
 }
 
 fn main() -> Result<()> {
@@ -50,12 +56,13 @@ fn main() -> Result<()> {
 
     let args = Args::parse();
     if args.request_output_only {
-        let req = whisper_runner::protobuf::whisper::WhisperRequest {
+        let req = WhisperArg {
             url: args.input,
             lang: whisper_runner::protobuf::whisper::Language::Auto as i32,
             task: if args.task == Task::Transcribe { 0 } else { 1 },
             timestamps: args.timestamps,
             seed: Some(args.seed),
+            n_tracks: Some(args.n_tracks),
         };
         let mut buf = Vec::with_capacity(req.encoded_len());
         req.encode(&mut buf).unwrap();
@@ -69,6 +76,7 @@ fn main() -> Result<()> {
             args.language.as_ref(),
             args.timestamps,
             args.seed,
+            args.n_tracks,
         )?;
         save_segs(&segs, &args.input)?;
     }
@@ -81,26 +89,26 @@ fn decode_file(
     lang: Option<&String>,
     timestamps: bool,
     seed: u64,
+    n_tracks: u64,
 ) -> Result<Vec<WhisperSegment>> {
-    let mut runner = WhisperRunnerPlugin::new()?;
+    let mut runner = WhisperRunnerPlugin::new_by_env()?;
     let lang = lang
         .flat_map(|l| whisper_runner::protobuf::whisper::Language::from_str_name(l))
         .unwrap_or(whisper_runner::protobuf::whisper::Language::Auto);
-    let req = whisper_runner::protobuf::whisper::WhisperRequest {
+    let req = WhisperArg {
         url: path.to_owned(),
         lang: lang as i32,
         task: if task == Task::Transcribe { 0 } else { 1 },
         timestamps,
         seed: Some(seed),
+        n_tracks: Some(n_tracks),
     };
     let mut buf = Vec::with_capacity(req.encoded_len());
     req.encode(&mut buf).unwrap();
 
     let result = runner.run(buf)?;
     if let Some(res) = result.first() {
-        let res =
-            whisper_runner::protobuf::whisper::WhisperResponse::decode(&mut Cursor::new(res))?
-                .segments;
+        let res = WhisperResult::decode(&mut Cursor::new(res))?.segments;
 
         tracing::debug!("result:len={},  data={:?}", res.len(), res);
 

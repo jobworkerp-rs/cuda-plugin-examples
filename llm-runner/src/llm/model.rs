@@ -26,16 +26,16 @@ use std::path::{Path, PathBuf};
 // const definitions for each model are only availables
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LLMModelLoaderConfig {
-    profile: Option<ModelLoaderProfile>,
-    model_id: Option<String>,
-    revision: Option<String>,       // default: main
-    tokenizer_file: Option<String>, // default: tokenizer.json
-    weight_files: Option<Vec<String>>,
-    model_config_file: Option<String>, // default: config.json
-    quantized: Option<bool>,           // TODO not implemented
-    use_flash_attn: bool,              // available for llama or mistral
-    pub eos_token: String,             // predefined (TODO load from tokenizer.json)
-    use_cpu: bool,                     // if quantized, cpu only (limited by candle)
+    pub profile: Option<ModelLoaderProfile>,
+    pub model_id: Option<String>,
+    pub revision: Option<String>,       // default: main
+    pub tokenizer_file: Option<String>, // default: tokenizer.json
+    pub weight_files: Option<Vec<String>>,
+    pub model_config_file: Option<String>, // default: config.json
+    pub quantized: Option<bool>,           // TODO not implemented
+    pub use_flash_attn: bool,              // available for llama or mistral
+    pub eos_token: String,                 // predefined (TODO load from tokenizer.json)
+    pub use_cpu: bool,                     // if quantized, cpu only (limited by candle)
 }
 
 #[derive(Debug, Clone)]

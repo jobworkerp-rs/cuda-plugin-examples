@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package embedding;
+
+message EmbeddingResult {
+    message SentenceEmbeddingVector{
+        // The embedded vector of sentence.
+        repeated float vector = 1;
+    }
+    // The embedded sentence vectors of the article.
+    repeated SentenceEmbeddingVector embeddings = 1;
+}

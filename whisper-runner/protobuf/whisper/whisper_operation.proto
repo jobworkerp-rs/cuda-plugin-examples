@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package whisper;
+
+message WhisperOperation {
+    // model name: 
+    optional string model = 1;
+    // if quantized, cpu only (limited by candle)
+    bool use_cpu = 2;
+
+    bool quantized =3;
+
+
+}

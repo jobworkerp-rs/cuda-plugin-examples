@@ -27,6 +27,9 @@ pub struct WhisperParams {
 
     /// Timestamps mode, this is not fully implemented yet.
     pub timestamps: bool,
+
+    /// the track number for decode (for multiple audio track: default 0)
+    pub n_tracks: usize,
 }
 
 pub struct WhisperRunModel {
@@ -68,14 +71,20 @@ impl WhisperRunModel {
     ) -> Result<Vec<Segment>> {
         let buf_sec = whisper::CHUNK_LENGTH as u64;
         let n_mels = self.model.config().num_mel_bins;
-        let processor = AudioTensorProcessor::new_by_data(data, ext, buf_sec, n_mels)?;
+        let processor =
+            AudioTensorProcessor::new_by_data(data, ext, buf_sec, n_mels, params.n_tracks)?;
         self.decode(processor, params)
     }
 
     pub fn decode_file(&mut self, input_file: &str, params: WhisperParams) -> Result<Vec<Segment>> {
         let n_mels = self.model.config().num_mel_bins;
         let buf_sec = whisper::CHUNK_LENGTH as u64;
-        let processor = AudioTensorProcessor::new_by_input(input_file.to_owned(), buf_sec, n_mels)?;
+        let processor = AudioTensorProcessor::new_by_input(
+            input_file.to_owned(),
+            buf_sec,
+            n_mels,
+            params.n_tracks,
+        )?;
         self.decode(processor, params)
     }
     pub fn decode(

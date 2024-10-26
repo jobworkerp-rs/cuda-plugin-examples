@@ -1,7 +1,12 @@
 use std::io::Cursor;
 
+use candle_wrapper::PluginRunner;
 use clap::Parser;
-use embedding_runner::{PluginRunner, SentenceBertRunnerPlugin};
+use embedding_runner::{
+    model::BertLoaderImpl,
+    protobuf::embedding::{EmbeddingArg, EmbeddingResult},
+    SentenceBertRunnerPlugin,
+};
 use itertools::Itertools;
 use prost::Message;
 use tracing::Level;
@@ -37,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Level::INFO
         })
         .init();
-    let req = embedding_runner::protobuf::embedding::SentenceEmbeddingRequest {
+    let req = EmbeddingArg {
         article: args.sentences,
         prefix: args.prefix,
     };
@@ -51,13 +56,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("request base64: {}", STANDARD.encode(&buf));
     } else {
         let mut runner = SentenceBertRunnerPlugin::new()?;
+        runner.load_model(&BertLoaderImpl::from_env()?)?;
 
         let res = runner.run(buf)?;
         let res = res.first().unwrap();
-        let res = embedding_runner::protobuf::embedding::SentenceEmbeddingResponse::decode(
-            &mut Cursor::new(res),
-        )?
-        .embeddings;
+        let res = EmbeddingResult::decode(&mut Cursor::new(res))?.embeddings;
 
         tracing::info!(
             "Embedding vecs({},{})",

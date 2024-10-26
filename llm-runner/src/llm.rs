@@ -7,14 +7,12 @@ pub mod tokenizer;
 // #[cfg(feature = "mkl")]
 // extern crate intel_mkl_src;
 
-use crate::llm::model::LLM;
-use crate::protobuf::llm::InferenceRequest;
+use self::model::{LLMModelLoader, LLMModelLoaderConfig};
+use crate::{llm::model::LLM, protobuf::llm::CandleLlmArg};
 use anyhow::{Error as E, Result};
 use candle_core::{DType, Tensor};
 use candle_transformers::generation::LogitsProcessor;
 use serde::{Deserialize, Serialize};
-
-use self::model::{LLMModelLoader, LLMModelLoaderConfig};
 
 // args for inference
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -59,8 +57,8 @@ impl Default for InferenceArgs {
         }
     }
 }
-impl From<InferenceRequest> for InferenceArgs {
-    fn from(req: InferenceRequest) -> Self {
+impl From<CandleLlmArg> for InferenceArgs {
+    fn from(req: CandleLlmArg) -> Self {
         Self {
             prompt: req.prompt,
             sample_len: req.sample_len as usize,

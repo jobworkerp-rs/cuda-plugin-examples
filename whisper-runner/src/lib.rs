@@ -3,11 +3,17 @@ pub mod runner;
 pub mod utils;
 
 use anyhow::{anyhow, Result};
-use async_trait::async_trait;
+use candle_wrapper::PluginRunner;
 use prost::Message;
-use protobuf::whisper::WhisperSegment;
-use runner::WhisperRunModel;
-use std::{alloc::System, fs::File, io::Cursor, path::PathBuf};
+use protobuf::whisper::{WhisperArg, WhisperOperation, WhisperResult, WhisperSegment};
+use runner::{whisper::model::WhisperLoaderImpl, WhisperRunModel};
+use std::{
+    alloc::System,
+    fs::File,
+    io::Cursor,
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
 use tempfile::{Builder, TempDir};
 
 use crate::runner::{whisper::Task, WhisperParams};
@@ -21,20 +27,11 @@ pub mod protobuf {
 #[global_allocator]
 static ALLOCATOR: System = System;
 
-#[async_trait]
-pub trait PluginRunner: Send + Sync {
-    fn name(&self) -> String;
-    fn run(&mut self, arg: Vec<u8>) -> Result<Vec<Vec<u8>>>;
-    fn cancel(&self) -> bool;
-}
-
 // suppress warn improper_ctypes_definitions
 #[allow(improper_ctypes_definitions)]
 #[no_mangle]
 pub extern "C" fn load_plugin() -> Box<dyn PluginRunner + Send + Sync> {
-    Box::new(WhisperRunnerPlugin {
-        model: WhisperRunModel::new().unwrap(),
-    })
+    Box::new(WhisperRunnerPlugin::new())
 }
 
 #[no_mangle]
@@ -44,14 +41,25 @@ pub extern "C" fn free_plugin(ptr: Box<dyn PluginRunner + Send + Sync>) {
 }
 
 pub struct WhisperRunnerPlugin {
-    pub model: WhisperRunModel,
+    pub model: Option<Arc<RwLock<WhisperRunModel>>>,
 }
 // static DATA: OnceCell<Bytes> = OnceCell::new();
 
 impl WhisperRunnerPlugin {
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Self {
+        Self { model: None }
+    }
+    pub fn new_by_env() -> Result<Self> {
         let model = WhisperRunModel::new()?;
-        Ok(Self { model })
+        Ok(Self {
+            model: Some(Arc::new(RwLock::new(model))),
+        })
+    }
+    pub fn load_from(&mut self, conf: WhisperOperation) -> Result<Self> {
+        let model = WhisperRunModel::new_from(&WhisperLoaderImpl::from(conf))?;
+        Ok(Self {
+            model: Some(Arc::new(RwLock::new(model))),
+        })
     }
     // XXX unused
     async fn get_temp_file(&self, url: &String) -> Result<(TempDir, PathBuf)> {
@@ -74,65 +82,102 @@ impl WhisperRunnerPlugin {
     }
 }
 
+impl Default for WhisperRunnerPlugin {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PluginRunner for WhisperRunnerPlugin {
     fn name(&self) -> String {
         // specify as same string as worker.operation
-        String::from("WhisperRunner")
+        String::from("Whisper")
     }
-    fn run(&mut self, arg: Vec<u8>) -> Result<Vec<Vec<u8>>> {
-        // let args = serde_json::from_slice::<WhisperArgs>(&arg)?;
-        let args = protobuf::whisper::WhisperRequest::decode(&mut Cursor::new(arg))
+    fn load(&mut self, operation: Vec<u8>) -> Result<()> {
+        let operation = protobuf::whisper::WhisperOperation::decode(&mut Cursor::new(operation))
             .map_err(|e| anyhow!("decode error: {}", e))?;
 
-        let start = std::time::Instant::now();
-        // for async function
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(async move {
-                let (_tmp_dir, path) = if args.url.trim().starts_with("http") {
-                    tracing::info!("download file from url: {}", &args.url);
-                    self.get_temp_file(&args.url).await?
-                } else {
-                    tracing::info!("decode file: {}", &args.url);
-                    (TempDir::new()?, PathBuf::from(&args.url))
-                };
-                let language = match args.lang() {
-                    protobuf::whisper::Language::Auto => None,
-                    l => Some(l.as_str_name().to_uppercase().to_string()),
-                };
+        let model_loader = WhisperLoaderImpl::from(operation);
+        self.model = Some(Arc::new(RwLock::new(WhisperRunModel::new_from(
+            &model_loader,
+        )?)));
+        Ok(())
+    }
+    fn operation_proto(&self) -> String {
+        include_str!("../protobuf/whisper/whisper_operation.proto").to_string()
+    }
+    fn job_args_proto(&self) -> String {
+        include_str!("../protobuf/whisper/whisper_arg.proto").to_string()
+    }
+    fn result_output_proto(&self) -> Option<String> {
+        Some(include_str!("../protobuf/whisper/whisper_result.proto").to_string())
+    }
+    // if true, use job result of before job, else use job args from request
+    fn use_job_result(&self) -> bool {
+        false
+    }
 
-                let task = match args.task() {
-                    protobuf::whisper::Task::Transcribe => Task::Transcribe, // default
-                    protobuf::whisper::Task::Translate => Task::Translate,
-                };
+    fn run(&mut self, arg: Vec<u8>) -> Result<Vec<Vec<u8>>> {
+        if let Some(m) = self.model.clone() {
+            // let args = serde_json::from_slice::<WhisperArgs>(&arg)?;
+            let args = WhisperArg::decode(&mut Cursor::new(arg))
+                .map_err(|e| anyhow!("decode error: {}", e))?;
 
-                let params = WhisperParams {
-                    seed: args.seed.unwrap_or(rand::random::<u64>()),
-                    language,
-                    task,
-                    timestamps: args.timestamps,
-                };
-                let segs = self
-                    .model
-                    .decode_file(path.to_string_lossy().as_ref(), params)?;
-                tracing::info!(
-                    "END OF WhisperRunner: elapsed seconds: {}",
-                    start.elapsed().as_secs_f64()
-                );
-                let bin = protobuf::whisper::WhisperResponse {
-                    segments: segs
-                        .into_iter()
-                        .map(|s| WhisperSegment {
-                            start: s.start,
-                            duration: s.duration,
-                            text: s.dr.text,
-                        })
-                        .collect(),
-                };
-                let mut buf = Vec::with_capacity(bin.encoded_len());
-                bin.encode(&mut buf).unwrap();
-                Ok(vec![buf])
-            })
+            let start = std::time::Instant::now();
+            // for async function
+            let model = m.clone();
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(async move {
+                    let (_tmp_dir, path) = if args.url.trim().starts_with("http") {
+                        tracing::info!("download file from url: {}", &args.url);
+                        self.get_temp_file(&args.url).await?
+                    } else {
+                        tracing::info!("decode file: {}", &args.url);
+                        (TempDir::new()?, PathBuf::from(&args.url))
+                    };
+                    let language = match args.lang() {
+                        protobuf::whisper::Language::Auto => None,
+                        l => Some(l.as_str_name().to_uppercase().to_string()),
+                    };
+
+                    let task = match args.task() {
+                        protobuf::whisper::Task::Transcribe => Task::Transcribe, // default
+                        protobuf::whisper::Task::Translate => Task::Translate,
+                    };
+
+                    let params = WhisperParams {
+                        seed: args.seed.unwrap_or(rand::random::<u64>()),
+                        language,
+                        task,
+                        timestamps: args.timestamps,
+                        n_tracks: args.n_tracks.unwrap_or(0) as usize,
+                    };
+                    let segs = model
+                        .write()
+                        .map_err(|e| anyhow!("failed to lock model: {}", e))?
+                        .decode_file(path.to_string_lossy().as_ref(), params)?;
+                    tracing::info!(
+                        "END OF WhisperRunner: elapsed seconds: {}",
+                        start.elapsed().as_secs_f64()
+                    );
+                    let bin = WhisperResult {
+                        segments: segs
+                            .into_iter()
+                            .map(|s| WhisperSegment {
+                                start: s.start,
+                                duration: s.duration,
+                                text: s.dr.text,
+                            })
+                            .collect(),
+                    };
+                    let mut buf = Vec::with_capacity(bin.encoded_len());
+                    bin.encode(&mut buf).unwrap();
+                    Ok(vec![buf])
+                })
+        } else {
+            Err(anyhow!("model is not loaded"))
+        }
     }
     fn cancel(&self) -> bool {
         tracing::warn!("WhisperRunner cancel: not implemented!");

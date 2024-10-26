@@ -1,12 +1,12 @@
-use std::fs::File;
-use std::path::Path;
-
+use anyhow::anyhow;
+use hound;
+use std::io::ErrorKind;
 use symphonia::core::audio::{AudioBuffer, Channels, Signal, SignalSpec};
 use symphonia::core::codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL};
 use symphonia::core::conv::FromSample;
 use symphonia::core::errors::Error;
 use symphonia::core::errors::Result;
-use symphonia::core::formats::{FormatOptions, FormatReader};
+use symphonia::core::formats::{FormatOptions, FormatReader, Track};
 use symphonia::core::io::{MediaSource, MediaSourceStream};
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
@@ -27,7 +27,7 @@ pub struct AudioNormalizedDecoder {
 
 impl AudioNormalizedDecoder {
     // new setup from input file string
-    pub fn new(file: String, buf_duration_sec: u64) -> Result<Self> {
+    pub fn new(file: String, buf_duration_sec: u64, n_tracks: usize) -> Result<Self> {
         let path = std::path::PathBuf::from(file);
         let ext = path.extension().and_then(|ex| ex.to_str());
         // Open the media source.
@@ -37,21 +37,27 @@ impl AudioNormalizedDecoder {
         // Create a probe hint using the file's extension. [Optional]
         let mut hint = Hint::new();
         ext.map(|ex| hint.with_extension(ex));
-        Self::setup(mss, hint, buf_duration_sec)
+        Self::setup(mss, hint, buf_duration_sec, n_tracks)
     }
     // Create the media source stream from data.
     pub fn new_by_data(
         data: Box<dyn MediaSource>,
         ext: Option<&String>,
         buf_duration_sec: u64,
+        n_track: usize,
     ) -> Result<Self> {
         let mss = MediaSourceStream::new(data, Default::default());
         // Create a probe hint using the file's extension. [Optional]
         let mut hint = Hint::new();
         ext.map(|ex| hint.with_extension(ex));
-        Self::setup(mss, hint, buf_duration_sec)
+        Self::setup(mss, hint, buf_duration_sec, n_track)
     }
-    fn setup(mss: MediaSourceStream, hint: Hint, buf_duration_sec: u64) -> Result<Self> {
+    fn setup(
+        mss: MediaSourceStream,
+        hint: Hint,
+        buf_duration_sec: u64,
+        n_track: usize,
+    ) -> Result<Self> {
         // Use the default options for metadata and format readers.
         let meta_opts: MetadataOptions = Default::default();
         let fmt_opts: FormatOptions = Default::default();
@@ -63,13 +69,46 @@ impl AudioNormalizedDecoder {
         let format = probed.format;
 
         // Find the first audio track with a known (decodeable) codec.
-        let track = format
+        let aud_tracks = format
             .tracks()
             .iter()
-            .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
-            .ok_or(symphonia::core::errors::Error::Unsupported(
-                "no supported audio tracks",
-            ))?;
+            .filter(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+            .collect::<Vec<&Track>>();
+        tracing::info!("audio tracks num: {}", aud_tracks.len());
+
+        // select specified track (first track normally)
+        let track = if aud_tracks.is_empty() {
+            Err(symphonia::core::errors::Error::IoError(
+                std::io::Error::new(
+                    ErrorKind::InvalidInput,
+                    anyhow!("no supported audio tracks"),
+                ),
+            ))
+        } else if aud_tracks.len() <= n_track {
+            Err(symphonia::core::errors::Error::IoError(
+                std::io::Error::new(
+                    ErrorKind::InvalidInput,
+                    anyhow!(format!(
+                        "no specified audio tracks: specified={}, but audio track length={}",
+                        n_track,
+                        aud_tracks.len()
+                    )),
+                ),
+            ))
+        } else {
+            aud_tracks
+                .get(n_track)
+                .ok_or(symphonia::core::errors::Error::IoError(
+                    std::io::Error::new(
+                        ErrorKind::InvalidInput,
+                        anyhow!(format!(
+                            "no specified audio tracks: specified={}, but audio track length={}",
+                            n_track,
+                            aud_tracks.len()
+                        )),
+                    ),
+                ))
+        }?;
         let track_id = track.id;
 
         // Use the default options for the decoder.
@@ -334,15 +373,42 @@ impl AudioNormalizedDecoder {
     }
 
     // for test (unused usually)
+    // fn _write_wav_old(&self, out_filename: &String) -> Result<()> {
+    //     let header = wav::Header::new(wav::header::WAV_FORMAT_IEEE_FLOAT, 1, self.spec.rate, 32);
+    //     let buf = self.sample_buf.as_ref().unwrap().chan(0);
+    //     let mut out_file = File::create(Path::new(out_filename))?;
+    //     wav::write(
+    //         header,
+    //         &wav::BitDepth::ThirtyTwoFloat(buf.to_vec()),
+    //         &mut out_file,
+    //     )?;
+    //     Ok(())
+    // }
+    // for test (unused usually)
     fn _write_wav(&self, out_filename: &String) -> Result<()> {
-        let header = wav::Header::new(wav::header::WAV_FORMAT_IEEE_FLOAT, 1, self.spec.rate, 32);
+        let spec = hound::WavSpec {
+            channels: 1,
+            sample_rate: self.spec.rate,
+            bits_per_sample: 32,
+            sample_format: hound::SampleFormat::Float,
+        };
+        let mut writer = hound::WavWriter::create(out_filename, spec).map_err(|e| {
+            symphonia::core::errors::Error::IoError(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("wav write error: {:?}", e),
+            ))
+        })?;
         let buf = self.sample_buf.as_ref().unwrap().chan(0);
-        let mut out_file = File::create(Path::new(out_filename))?;
-        wav::write(
-            header,
-            &wav::BitDepth::ThirtyTwoFloat(buf.to_vec()),
-            &mut out_file,
-        )?;
+        // let mut out_file = File::create(Path::new(out_filename))?;
+        for &sample in buf {
+            writer.write_sample(sample).map_err(|e| {
+                tracing::error!("wav write error: {:?}", e);
+                symphonia::core::errors::Error::IoError(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("wav write error: {:?}", e),
+                ))
+            })?;
+        }
         Ok(())
     }
 }

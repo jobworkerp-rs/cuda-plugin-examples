@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package embedding;
+
+message EmbeddingOperation {
+    // bert model id (e.g. "intfloat/multilingual-e5-small")
+    string model_id = 1;
+
+    /// if quantized, cpu only (limited by candle)
+    bool use_cpu = 2;
+
+    /// L2 normalization for embeddings.
+    bool normalize_embeddings = 3;
+
+    /// Use tanh based approximation for Gelu instead of erf implementation.
+    bool approximate_gelu = 4;
+
+    /// use prefix for embedding key (e.g. "query: , passage: for multilingual-e5 model")
+    optional string prefix = 5;
+
+}

@@ -3,11 +3,11 @@
 // - Batch size greater than 1.
 // - More token filters (SuppressBlanks, ApplyTimestampRules).
 
-#[cfg(feature = "accelerate")]
-extern crate accelerate_src;
+// #[cfg(feature = "accelerate")]
+// extern crate accelerate_src;
 
-#[cfg(feature = "mkl")]
-extern crate intel_mkl_src;
+// #[cfg(feature = "mkl")]
+// extern crate intel_mkl_src;
 
 use anyhow::{anyhow, Context, Result};
 use candle_core::Device;
@@ -19,6 +19,8 @@ use candle_wrapper::whisper::WhisperWrapper;
 use clap::ValueEnum;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
+
+use crate::protobuf::whisper::WhisperOperation;
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, ValueEnum)]
 pub enum WhichModel {
@@ -41,6 +43,26 @@ pub enum WhichModel {
     DistilMediumEn,
     #[value(name = "distil-large-v2")]
     DistilLargeV2,
+}
+impl From<String> for WhichModel {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "tiny" => Self::Tiny,
+            "tiny.en" => Self::TinyEn,
+            "base" => Self::Base,
+            "base.en" => Self::BaseEn,
+            "small" => Self::Small,
+            "small.en" => Self::SmallEn,
+            "medium" => Self::Medium,
+            "medium.en" => Self::MediumEn,
+            "large" => Self::Large,
+            "large-v2" => Self::LargeV2,
+            "large-v3" => Self::LargeV3,
+            "distil-medium.en" => Self::DistilMediumEn,
+            "distil-large-v2" => Self::DistilLargeV2,
+            _ => Self::LargeV3, // default
+        }
+    }
 }
 
 impl WhichModel {
@@ -96,6 +118,15 @@ pub struct WhisperLoaderImpl {
     pub quantized: bool,
 
     pub model: WhichModel,
+}
+impl From<WhisperOperation> for WhisperLoaderImpl {
+    fn from(op: WhisperOperation) -> Self {
+        Self {
+            use_cpu: op.use_cpu,
+            quantized: op.quantized,
+            model: op.model.map(|v| v.into()).unwrap_or(WhichModel::LargeV3),
+        }
+    }
 }
 
 impl WhisperLoaderImpl {

@@ -1,7 +1,6 @@
-use std::io::Cursor;
-
+use candle_wrapper::PluginRunner;
 use clap::Parser;
-use llm_runner::{protobuf::llm::InferenceRequest, LlmRunnerPlugin, PluginRunner};
+use llm_runner::{protobuf::llm::CandleLlmArg, LlmRunnerPlugin};
 use prost::Message;
 
 #[derive(Parser, Debug)]
@@ -44,8 +43,8 @@ impl Args {
     fn new() -> Self {
         Self::parse()
     }
-    fn to_request(&self) -> InferenceRequest {
-        InferenceRequest {
+    fn to_request(&self) -> CandleLlmArg {
+        CandleLlmArg {
             prompt: self.prompt.clone(),
             sample_len: self.sample_len,
             temperature: self.temperature,
@@ -74,10 +73,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         use base64::{engine::general_purpose::STANDARD, Engine as _};
         println!("request base64: {}", STANDARD.encode(&buf));
     } else {
-        let mut plugin = LlmRunnerPlugin::new()?;
+        let mut plugin = LlmRunnerPlugin::new();
+        plugin.load_config_from_env()?;
         let result = plugin.run(buf)?;
         let text = if let Some(res) = result.first() {
-            llm_runner::protobuf::llm::InferenceResponse::decode(&mut Cursor::new(res))?.text
+            String::from_utf8_lossy(res).to_string()
         } else {
             tracing::warn!("no result");
             "".to_string()
