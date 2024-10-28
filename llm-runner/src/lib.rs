@@ -99,7 +99,7 @@ impl PluginRunner for LlmRunnerPlugin {
     }
     // return string
     fn result_output_proto(&self) -> Option<String> {
-        None
+        Some("".to_string())
     }
     // if true, use job result of before job, else use job args from request
     fn use_job_result(&self) -> bool {

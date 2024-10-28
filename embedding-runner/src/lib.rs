@@ -116,6 +116,6 @@ impl PluginRunner for SentenceBertRunnerPlugin {
     }
 
     fn use_job_result(&self) -> bool {
-        todo!()
+        false
     }
 }
