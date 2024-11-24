@@ -126,7 +126,7 @@ impl From<LLMConfig> for llama::Config {
                 .unwrap_or(default.num_key_value_heads),
             rms_norm_eps: config.rms_norm_eps.unwrap_or(default.rms_norm_eps),
             rope_theta: config.rope_theta,
-            use_flash_attn: config.use_flash_attn.unwrap_or(true),
+            use_flash_attn: config.use_flash_attn.unwrap_or(false),
             bos_token_id: Some(config.bos_token_id),
             eos_token_id: Some(llama::LlamaEosToks::Single(config.eos_token_id)), // TODO multi
             rope_scaling: None,                                                   // TODO
@@ -141,7 +141,7 @@ impl From<LLMConfig> for llama::Config {
 // TODO
 impl From<LLMConfig> for mistral::Config {
     fn from(value: LLMConfig) -> Self {
-        let default = mistral::Config::config_7b_v0_1(true);
+        let default = mistral::Config::config_7b_v0_1(value.use_flash_attn.unwrap_or(false));
         // XXX cannot init mistral::Config (field scope "crate")
         mistral::Config {
             vocab_size: value.vocab_size,
@@ -169,9 +169,9 @@ impl From<LLMConfig> for mistral::Config {
 }
 impl From<LLMConfig> for stable_lm::Config {
     // cannot fillin private field (use deserialize)
-    fn from(_value: LLMConfig) -> Self {
+    fn from(value: LLMConfig) -> Self {
         // default not exists
-        let default = stable_lm::Config::stablelm_3b_4e1t(_value.use_flash_attn.unwrap_or(true));
+        let default = stable_lm::Config::stablelm_3b_4e1t(value.use_flash_attn.unwrap_or(false));
         // XXX cannot init stable_lm::Config (field scope "crate")
         tracing::debug!("load stable_lm 3b 4e1t model params: {:?}", default);
         default

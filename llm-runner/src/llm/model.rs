@@ -83,7 +83,7 @@ static ELYZA_7B_FAST: Lazy<LLMModelLoaderConfig> = Lazy::new(|| LLMModelLoaderCo
     weight_files: Some(WEIGHT_FILES_SAFETENSOR_7B.map(|s| s.to_string()).to_vec()),
     model_config_file: Some(MODEL_FILE.to_string()),
     quantized: Some(false),
-    use_flash_attn: true,
+    use_flash_attn: false,
     eos_token: EOS_TOKEN.to_string(),
     use_cpu: false,
 });
